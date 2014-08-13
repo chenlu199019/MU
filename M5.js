@@ -1,7 +1,7 @@
 var lastVertex=1;
 var stepnum=0;
 var step=50;     //5; //meters
-var tick=360;     // miliseconds
+var tick=360;     // miliseconds                 /////// line 447 steo and tick 
 var eol=[];
 
 var map;
@@ -42,7 +42,10 @@ var directionsDisplay;
 var contentStr;
 var geocoder;
 var Title;
-
+var on=[];  // to keep track whether the safe region is on or off of each marker
+var safeRegion=[];
+var IdArray=[];  //to receive the ids for safe region
+var shape=[];
 
 function RoadControl(controlDiv){
 	controlDiv.style.padding='5px';
@@ -113,10 +116,8 @@ function initialize(){
 	ContextMenuControlDiv.index = 1;   
 	map.controls[google.maps.ControlPosition.TOP_LEFT].push(ContextMenuControlDiv);
 
-    change=false; // for safeRegion
-    generate_safeRegion();
-    routeID=0;
-    IdS=0;
+	routeID=0;
+	IdS=0;
     IdE=0;  //initiate the start and end id
     clickIndex=0;// user click index
     directionsDisplay = new Array();
@@ -234,9 +235,9 @@ function createAlarmMarker(latlng){
 		map:map,
 		icon: image,
 		zIndex:100,
-		visible:true
+		visible:false
 	});
-  return marker;
+	return marker;
 }
 
 
@@ -329,20 +330,20 @@ function calcRoute(id,directionService){
 	directionService.route(request,makeRouteCallback(id,directionsDisplay[id]));
 
     ///add interest region
-      subjectPoint={
-      radius: 1.0,
-      color: '#1abc9c',
-      }
+    subjectPoint={
+    	radius: 1.0,
+    	color: '#1abc9c',
+    }
 
-      var interestRadius = document.getElementById('radius').value;
-      console.log("interesrRadius in km is "+interestRadius);
+    var interestRadius = document.getElementById('radius').value;
+    console.log("interesrRadius in km is "+interestRadius);
 
-      var subjectRange = new google.maps.Circle({
-      map:map,
+    var subjectRange = new google.maps.Circle({
+    	map:map,
       radius:interestRadius*1000,   ///// unit is meter
       fillColor: subjectPoint.color,strokeColor:'#3D9912'
-      });
-      console.log("the range in meters "+subjectRange.getRadius());
+  });
+    console.log("the range in meters "+subjectRange.getRadius());
 
     function makeRouteCallback(routeNum,disp){
     	if(polyline[routeNum] && (polyline[routeNum].getMap()!=null)){
@@ -362,9 +363,9 @@ function calcRoute(id,directionService){
     				strokeOpacity: 0.7,
     				strokeWeight: 5,
     				icons: [{
-                    icon: 'image/bell.gif',
-                    offset: '100%'
-                          }],
+    					icon: 'image/bell.gif',
+    					offset: '100%'
+    				}],
     			});
 
     			poly2[routeNum]= new google.maps.Polyline({
@@ -381,16 +382,18 @@ function calcRoute(id,directionService){
     			disp.setMap(map);
     			disp.setDirections(response);
 
-				
 
-				for(i=0;i<legs.length;i++){
-					if(i==0){
-						startLocation[routeNum].latlng = legs[i].start_location;
+
+    			for(i=0;i<legs.length;i++){
+    				if(i==0){
+    					startLocation[routeNum].latlng = legs[i].start_location;
 						var a = String(startLocation[routeNum].latlng);  ///replace the parenthese
 						a=a.replace(/[{()} ]/g, ''); 					
 						startLocation[routeNum].address = legs[i].start_address;						
-						marker[routeNum]=createMarker(a,id,movingIcon);   //////////////////////////   create moving marker
+						marker[routeNum]=createMarker(a,id,movingIcon);   ////////////////////////// create moving marker
 						AlarmMarker[routeNum]=createAlarmMarker(a);
+						createSafeRegionOption(id);////////////////////craete safe region ooptin for this marker
+						on.push(0);  ///set the default false for displaying safe region
 						subjectRange.bindTo('center',marker[routeNum],'position');
 					}
 					endLocation[routeNum].latlng = legs[i].end_location;
@@ -432,9 +435,13 @@ function updatePoly(i,d){
 function animate(index,d){
 	if(d>eol[index]){
 		marker[index].setPosition(endLocation[index].latlng);
-		AlarmMarker[index].setPosition(endLocation[index].latlng);
+		//AlarmMarker[index].setPosition(endLocation[index].latlng);
 		subjectPoint.setPoint="endLocation[index].latlng";
 		return;
+	}
+	//console.log("the route distance is "+eol[index]+" the d step is "+d);
+	if(eol[index]-d<1.000){
+		AlarmMarker[index].setVisible(false);
 	}
 	var p = polyline[index].GetPointAtDistance(d);
 	marker[index].setPosition(p);
@@ -554,44 +561,6 @@ function setContent(a,b,locBox,No){
 	});
 }
 
-function generate_safeRegion(){ ///should pass in l and n value
-	var width = 0.005;
-	var l=1.309416;
-	var n=103.779613;
-	var rectCoords = [
-	new google.maps.LatLng(l,n),
-	new google.maps.LatLng(l+width,n),
-	new google.maps.LatLng(l+width,n+width),
-	new google.maps.LatLng(l,n+width),
-	new google.maps.LatLng(l,n)
-	];
-	safeRegion =  new google.maps.Polygon({
-		path:rectCoords,
-		strokeColor: '#FF0000',
-		strokeOpacity: 0.8,
-		strokeWeight: 2,
-		fillColor: '#FF0000',
-		fillOpacity: 0.35
-	});
-}
-
-function show(){
-	safeRegion.setMap(map);
-	change=true;
-}
-
-function hide(){
-	safeRegion.setMap(null);
-	change=false;
-}
-
-function toggle2(){
-
-	if(change==false)
-		show();
-	else if(change==true)
-		hide();
-}
 function UploadEvent(){
   count=0;////reset count to 0 for cating next event title
   var lat = document.getElementById("lat").value;
@@ -652,40 +621,16 @@ function UploadEvent(){
   }
   textBox.innerText=replaceHtml(temp);
   
-  
-  /*var contentString = '<div style="height:150px;width:250px;">'+
-  '<h3>'+Title+'</h3>'+
-  '<div id="bodyContent">'+
-  listContent+
-  '</div>'+
-  '</div>';*/
-
   document.getElementById("event_list").value="Event Deployed Successfully.";
   
-  /*var infowindow = new google.maps.InfoWindow({
-  	content: contentString
+  google.maps.event.addListener(eventMarkers[No], 'click', function() {
+  	win.open(map,eventMarkers[No]);
   });
-  console.log("add a marker to "+myLatlng);
+  document.getElementById("newInfo").placeholder = "Enter Organiser first";
 
-  var marker = new google.maps.Marker({
-  	position: myLatlng,
-  	map:map,
-  	animation: google.maps.Animation.DROP,
- 
-  	title:'On sale'
+  $('#newInfo').focus(function(){
+  	document.getElementById("event_list").value="";
   });
-  google.maps.event.addListener(marker, 'click', function() {
-  	infowindow.open(map,marker);
-  });*/
-
-google.maps.event.addListener(eventMarkers[No], 'click', function() {
-	win.open(map,eventMarkers[No]);
-});
-document.getElementById("newInfo").placeholder = "Enter Organiser first";
-
-$('#newInfo').focus(function(){
-	document.getElementById("event_list").value="";
-});
 
 }
 
@@ -716,6 +661,189 @@ function afterMatch2(){
 	document.getElementById("part1").style.display="none";
 	document.getElementById("matchTitle").style.display="block";
 	document.getElementById("accordion").style.display="block";
+}
+
+
+function addInt(){
+	var newInterest = document.getElementById("interest_input").value+"\n";
+	$('#interest_list').val($('#interest_list').val()+newInterest);
+	document.getElementById("interest_input").value="";
+} 
+
+
+function Grid_net(){
+	var e = document.getElementById("userOnMap");
+	var id = e.options[e.selectedIndex].value;   //// the index for the marker need to show safe 
+	var i=parseInt(id);
+	var IdArray = [137206, 137207 ,137208, 137209, 137210 ,137211, 137212, 137213, 137214, 137803,
+	              137804 ,137805, 137806, 137807 ,137808 ,137809, 137810, 137811, 137812, 137813,
+	              137814 ,137815 ,137816, 137817, 138401, 138402, 138403, 138404, 138405, 138406,
+	              138407, 138408 ,138409, 138410, 138411, 138412, 138413, 138414, 138415, 138416 ,
+	              138417, 138418, 138419,138999 ,139000 ,139001, 139002, 139003, 139004 ,139005,
+	              139006, 139007, 139008, 139009, 139010, 139011, 139012, 139013, 139014, 139015,
+	              139016, 139017, 139018, 139019, 139020, 139021, 139598, 139599, 139600, 139601,
+	              139602, 139603, 139604, 139605, 139606, 139607, 139608, 139609, 139610, 139611, 
+	              139612, 139613, 139614, 139615, 139616, 139617, 139618, 139619, 139620, 139621,
+	              139622, 140197, 140198, 140199, 140200, 140201, 140202, 140203, 140204, 140205,
+	              140206, 140207, 140208, 140209, 140210, 140211, 140212, 140213, 140214, 140215,
+	              140216, 140221, 140222, 140223, 140796, 140797, 140798, 140799, 140800, 140801, 
+	              140802, 140803, 140804, 140805, 140806, 140807, 140808, 140809, 140810, 140811,
+	              140812, 140813, 140814, 140815, 140816, 140821, 140822, 140823, 140824, 141395,
+	              141396, 141397, 141398, 141399, 141400, 141401, 141402, 141403, 141404, 141405,
+	              141406, 141407, 141408, 141409, 141410, 141411, 141412, 141413, 141414, 141415,
+	              141416, 141417, 141420, 141421, 141422, 141423, 141424, 141425, 141995, 141996,
+	              141997, 141998, 141999, 142000, 142001, 142002, 142003, 142004, 142005, 142006,
+	              142007, 142008, 142009, 142010, 142011, 142012, 142013, 142014, 142015, 142016, 142017, 142018, 
+	              142019, 142020, 142021, 142022, 142023, 142024, 142025, 142594, 142595, 142596, 142597, 142598, 
+	              142599, 142600, 142601, 142602, 142603, 142604, 142605, 142606, 142607, 142608, 142609, 142610, 
+	              142611, 142612, 142613, 142614, 142615, 142616, 142617, 142618, 142619, 142620, 142621, 142622, 
+	              142623, 142624, 142625, 142626, 143194, 143195, 143196, 143197, 143198, 143199, 143200, 143201, 
+	              143202, 143203, 143204, 143205, 143206, 143207, 143208, 143209, 143210, 143211, 143212, 143213, 
+	              143214, 143215, 143216, 143217, 143218, 143219, 143220, 143221, 143222, 143223, 143224, 143225, 
+	              143226, 143793, 143794, 143795, 143796, 143797, 143798, 143799, 143800, 143801, 143802, 143803, 
+	              143804, 143805, 143806, 143807, 143808, 143809, 143810, 143811, 143812, 143813, 143814, 143815, 
+	              143816, 143817, 143818, 143819, 143820, 143821, 143822, 143823, 143824, 143825, 143826, 143827, 
+	              144393, 144394, 144395, 144396, 144397, 144398, 144399, 144400, 144401, 144402, 144403, 144404, 
+	              144405, 144406, 144407, 144408, 144409, 144410, 144411, 144412, 144413, 144414, 144415, 144416, 
+	              144417, 144418, 144419, 144420, 144421, 144422, 144423, 144424, 144425, 144426, 144427, 144993, 
+	              144994, 144995, 144996, 144997, 144998, 144999, 145000, 145001, 145002, 145003, 145004, 145005, 
+	              145006, 145007, 145010, 145011, 145012, 145013, 145014, 145015, 145016, 145017, 145018, 145019, 
+	              145020, 145021, 145022, 145023, 145024, 145025, 145026, 145027, 145028, 145592, 145593, 145594, 
+	              145595, 145596, 145597, 145598, 145599, 145600, 145601, 145602, 145603, 145604, 145605, 145606, 
+	              145611, 145612, 145613, 145614, 145615, 145616, 145617, 145618, 145619, 145620, 145621, 145622, 
+	              145623, 145624, 145625, 145626, 145627, 145628, 146192, 146193, 146194, 146195, 146196, 146197, 
+	              146198, 146199, 146200, 146201, 146202, 146203, 146204, 146205, 146206, 146211, 146212, 146213, 
+	              146214, 146215, 146216, 146217, 146218, 146219, 146220, 146221, 146222, 146223, 146224, 146225, 
+	              146226, 146227, 146228, 146792, 146793, 146794, 146795, 146796, 146797, 146798, 146799, 146800,
+	              146801, 146802, 146803, 146804, 146805, 146806, 146807, 146810, 146811, 146812, 146813, 146814, 
+	              146815, 146816, 146817, 146818, 146819, 146820, 146821, 146822, 146823, 146824, 146825, 146826, 
+	              146827, 146828, 147392, 147393, 147394, 147395, 147396, 147397, 147398, 147399, 147400, 147401, 
+	              147402, 147403, 147404, 147405, 147406, 147407, 147408, 147409, 147410, 147411, 147412, 147413, 
+	              147414, 147415, 147416, 147417, 147418, 147419, 147420, 147421, 147422, 147423, 147424, 147425, 
+	              147426, 147427, 147428, 147992, 147993, 147994, 147995, 147996, 147997, 147998, 147999, 148000, 
+	              148001, 148002, 148003, 148004, 148005, 148006, 148007, 148008, 148009, 148010, 148011, 148012, 
+	              148013, 148014, 148015, 148016, 148017, 148018, 148019, 148020, 148021, 148022, 148023, 148024, 
+	              148025, 148026, 148027, 148028, 148592, 148593, 148594, 148595, 148596, 148597, 148598, 148599, 
+	              148600, 148601, 148602, 148603, 148604, 148605, 148606, 148607, 148608, 148609, 148610, 148611, 
+	              148612, 148613, 148614, 148615, 148616, 148617, 148618, 148619, 148620, 148621, 148622, 148623, 
+	              148625, 148626, 148627, 148628, 149192, 149193, 149194, 149195, 149196, 149197, 149198, 149199, 
+	              149200, 149201, 149202, 149203, 149204, 149205, 149206, 149207, 149208, 149209, 149210, 149211, 
+	              149212, 149213, 149214, 149215, 149216, 149217, 149218, 149219, 149220, 149221, 149222, 149223, 
+	              149224, 149225, 149226, 149227, 149228, 149792, 149793, 149794, 149795, 149796, 149797, 149798, 
+	              149799, 149800, 149801, 149802, 149803, 149804, 149805, 149806, 149807, 149808, 149809, 149810, 
+	              149811, 149812, 149813, 149814, 149815, 149816, 149817, 149818, 149819, 149820, 149821, 149822, 
+	              149823, 149824, 149825, 149826, 149827, 149828, 150392, 150393, 150394, 150395, 150396, 150397, 
+	              150398, 150399, 150400, 150401, 150402, 150403, 150404, 150405, 150406, 150407, 150408, 150409, 
+	              150410, 150411, 150412, 150413, 150414, 150415, 150416, 150417, 150418, 150419, 150420, 150421, 
+	              150422, 150423, 150424, 150425, 150426, 150427, 150428, 150993, 150994, 150995, 150996, 150997,
+	              150998, 150999, 151000, 151001, 151002, 151003, 151004, 151005, 151006, 151007, 151008, 151009, 
+	              151010, 151011, 151012, 151013, 151014, 151015, 151016, 151017, 151018, 151019, 151020, 151021, 
+	              151022, 151023, 151024, 151025, 151026, 151027, 151028, 151593, 151594, 151595, 151596, 151597, 
+	              151598, 151599, 151600, 151601, 151602, 151603, 151604, 151605, 151606, 151607, 151608, 151609, 
+	              151610, 151611, 151612, 151613, 151614, 151615, 151616, 151617, 151618, 151619, 151620, 151621, 
+	              151622, 151623, 151624, 151625, 151626, 151627, 152193, 152194, 152195, 152196, 152197, 152198, 
+	              152199, 152200, 152201, 152202, 152203, 152204, 152205, 152206, 152207, 152208, 152209, 152210, 
+	              152211, 152212, 152213, 152214, 152215, 152216, 152217, 152218, 152219, 152220, 152221, 152222, 
+	              152223, 152224, 152225, 152226, 152227, 152794, 152795, 152796, 152797, 152798, 152799, 152800, 
+	              152801, 152802, 152803, 152804, 152805, 152806, 152807, 152808, 152809, 152810, 152811, 152812, 
+	              152813, 152814, 152815, 152816, 152817, 152818, 152819, 152820, 152821, 152822, 152823, 152824, 
+	              152825, 152826, 152827, 153394, 153395, 153396, 153397, 153398, 153399, 153400, 153401, 153402, 
+	              153403, 153404, 153405, 153406, 153407, 153408, 153409, 153410, 153411, 153412, 153413, 153414, 
+	              153415, 153416, 153417, 153418, 153419, 153420, 153421, 153422, 153423, 153424, 153425, 153426, 
+	              153995, 153996, 153997, 153998, 153999, 154000, 154001, 154002, 154003, 154004, 154005, 154006, 
+	              154007, 154008, 154009, 154010, 154011, 154012, 154013, 154014, 154015, 154016, 154017, 154018, 
+	              154019, 154020, 154021, 154022, 154023, 154024, 154025, 154595, 154596, 154597, 154598, 154599, 
+	              154600, 154601, 154602, 154603, 154604, 154605, 154606, 154607, 154608, 154609, 154610, 154611, 
+	              154612, 154613, 154614, 154615, 154616, 154617, 154618, 154619, 154620, 154621, 154622, 154623, 
+	              154624, 154625, 155196, 155197, 155198, 155199, 155200, 155201, 155202, 155203, 155204, 155205, 
+	              155206, 155207, 155208, 155209, 155210, 155211, 155212, 155213, 155214, 155215, 155216, 155217, 
+	              155218, 155219, 155220, 155221, 155222, 155223, 155224, 155797, 155798, 155799, 155800, 155801,
+	              155802, 155803, 155804, 155805, 155806, 155807, 155808, 155809, 155810, 155811, 155812, 155813, 
+	              155814, 155815, 155816, 155817, 155818, 155819, 155820, 155821, 155822, 155823, 156398, 156399, 
+	              156400, 156401, 156402, 156403, 156404, 156405, 156406, 156407, 156408, 156409, 156410, 156411, 
+	              156412, 156413, 156414, 156415, 156416, 156417, 156418, 156419, 156420, 156421, 156422, 156999, 
+	              157000, 157001, 157002, 157003, 157004, 157005, 157006, 157007, 157008, 157009, 157010, 157011, 
+	              157012, 157013, 157014, 157015, 157016, 157017, 157018, 157019, 157020, 157021, 157601, 157602, 
+	              157603, 157604, 157605, 157606, 157607, 157608, 157609, 157610, 157611, 157612, 157613, 157614, 
+	              157615, 157616, 157617, 157618, 157619, 157620, 158202, 158203, 158204, 158205, 158206, 158207, 
+	              158208, 158209, 158210, 158211, 158212, 158213, 158214, 158215, 158216, 158217, 158218, 158805, 
+	              158806, 158807, 158808, 158809, 158810, 158811, 158812, 158813, 158814, 158815,
+	              ];
+
+	if(i!="Select user"){
+		if(on[i]==0){		/// first time need to create the safe region and show
+			console.log("first time call");
+			safeRegion[i]=generate_safeRegion(IdArray);
+			SetMap(safeRegion[i],map);
+			on[i]++;
+		}
+	else if(on[i]%2==1){   // odd time, cancel the safeRegion
+		console.log("second time call");
+		SetMap(safeRegion[i],null);
+		on[i]++;
+	}
+	else if(on[i]%2==0){     /// safe region has been created already just show
+		console.log('third time call');
+		SetMap(safeRegion[i],map);
+		on[i]++;
+	}
+	document.getElementById("userOnMap").value="Select user";
+	}
+	else
+		return;
+}///////end
+
+
+function SetMap(arr,background){
+	console.log("the length for the shape is "+arr.length);
+	var count=0;
+	for(i=0;i<arr.length;i++){
+		arr[i].setMap(background);
+		console.log(count++);
+	}
+}
+
+function createSafeRegionOption(index){
+	var op = document.createElement("option");
+	op.text="User "+index;
+	op.value=String(index);
+	var list = document.getElementById("userOnMap");
+	list.add(op);
+}
+
+function generate_safeRegion(IdArr){
+	var width = 0.00073356628;  /////set the width for each cell
+	var height = 0.00039099243;  //// 600*600
+	///// set the leftdown corner of the cells[0]
+	//var origin_l=1.23620931;
+	//var origin_n=103.59798431;
+	var l=1.23620931;      
+	var n=103.59798431;
+	
+	for(i=0;i<IdArr.length;i++){
+	var id=IdArr[i];
+	var newL=l+height*(parseFloat(id%600));
+	var newN=n+width*(parseFloat(id/600));
+	console.log("id and newL and newN are "+id+", "+newL+", "+newN);
+	var rectCoords = [
+			new google.maps.LatLng(newL,newN),
+			new google.maps.LatLng(newL,newN+width),
+			new google.maps.LatLng(newL+height,newN+width),
+			new google.maps.LatLng(newL+height,newN),
+			new google.maps.LatLng(newL,newN)
+			];
+			var p =  new google.maps.Polygon({
+				//map:map,
+				path:rectCoords,
+				strokeColor: '#FF0000',
+				strokeOpacity: 0.8,
+				strokeWeight: 2,
+				fillColor: '#FF0000',
+				fillOpacity: 0.35
+			}); 
+		shape.push(p);
+		}
+		return shape;
 }
 
 
@@ -781,9 +909,3 @@ function changeSet(){
 		sel.options[3].value="33";
 	}
 }
-
-function addInt(){
-	var newInterest = document.getElementById("interest_input").value+"\n";
-	$('#interest_list').val($('#interest_list').val()+newInterest);
-	document.getElementById("interest_input").value="";
-} 

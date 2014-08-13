@@ -114,18 +114,18 @@ cursor: pointer;
 
 .frombox{
 	border:2px solid #bdc3c7;
-	font-family:Open Sans;
+	font-family:Arial;
 	font-size:16px;
 	height:35px;
 	width:220px;
 	position:relative;
-	left:-110px;
+	left:5px;
 	top:0px;
 	border-radius: 6px;
 }
 .tobox{
 	border:2px solid #bdc3c7;
-	font-family:Open Sans;
+	font-family:Arial;
 	font-size:16px;
 	height:35px;
 	width:220px;
@@ -137,7 +137,7 @@ cursor: pointer;
 
 #panel{
 		font-family:Arial;
-	    width:250px;
+	    width:230px;
 	    height:38px;
 	    position: relative;
         top: -10px;
@@ -156,7 +156,22 @@ cursor: pointer;
 	    height:38px;
 	    position: relative;
         top: -83px;
-        left:690px;
+        left:655px;
+        margin-left: -180px;*/
+        z-index: 5;
+        background-color: #1abc9c;
+        padding: 5px;
+        border: 2px solid #bdc3c7;
+        border-radius: 6px;
+
+}
+#panel3{
+		font-family:Arial;
+	    width:220px;
+	    height:38px;
+	    position: relative;
+        top: 62px;
+        left:780px;
         margin-left: -180px;*/
         z-index: 5;
         background-color: #1abc9c;

@@ -172,7 +172,14 @@ $(document).ready(function(){
 					<div id="markers" style="position:relative; top:10px; left:0px; width:500px; height:160px">
 						
 						<input style="display:none" name="pointhide" id="pointhide" value="pointhide">
-						<input type="botton" id="safe-region-btn" value="Safe Region" onclick="toggle2()">
+						<!--input type="botton" id="safe-region-btn" value="Safe Region" onclick="toggle2()"-->
+						<div id="panel3">
+							<b style='color:white;font-size:16px;'>Safe Region: </b>
+							<!--select id="mode" onchange="calcRoute();"-->
+							<select id="userOnMap" onchange="Grid_net()">
+								<option value="" selected="selected">Select user</option>
+							</select>
+						</div>
 
 						<!--for destination-->
 						
